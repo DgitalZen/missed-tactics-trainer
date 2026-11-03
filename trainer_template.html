@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My missed tactics</title>
+<style>
+:root{--bg:#eef0f3;--fg:#1b2230;--panel:#ffffff;--muted:#5d6678;--line:#d3d8e0;
+--l:#dfe5ef;--d:#8499bd;--sel:#f2d36b;--hint:#6fb5a6;--ok:#1f7a4d;--bad:#b3392f;--btn:#1b2230;--btnfg:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#141922;--fg:#e8ebf1;--panel:#1d2430;--muted:#9aa4b7;--line:#313a4b;
+--l:#b9c4d8;--d:#5f7399;--btn:#e8ebf1;--btnfg:#141922}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:14px 12px 40px}
+h1{font-size:1.1rem;margin:0 0 10px;font-weight:650}
+.bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap}
+select,button,input[type=text]{font:inherit;border-radius:8px;border:1px solid var(--line);padding:8px 12px;background:var(--panel);color:var(--fg)}
+button{cursor:pointer}
+button.main{background:var(--btn);color:var(--btnfg);border-color:var(--btn)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--hint);outline-offset:2px}
+input[type=text]{width:100%;margin-top:8px}
+.meta{color:var(--muted);font-size:.9rem}
+#board{position:relative;--s:min(92vw,520px);width:var(--s);height:var(--s);display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));border:2px solid var(--fg);margin:0 auto 12px;user-select:none}
+.sq{min-width:0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:calc(var(--s)/8*.78);line-height:1;position:relative;cursor:pointer}
+.sq.l{background:var(--l)}.sq.d{background:var(--d)}
+.sq.sel{background:var(--sel)!important}.sq.hint{background:var(--hint)!important}
+.pw{color:#fff;text-shadow:0 0 2px #000,0 0 2px #000,0 0 1px #000}
+.pb{color:#10131a;text-shadow:0 0 1px #fff}
+.coord{position:absolute;font-size:10px;color:var(--fg);opacity:.55;left:2px;bottom:1px;line-height:1}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.q{font-weight:600;margin:0 0 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.ok{color:var(--ok);font-weight:650}.bad{color:var(--bad);font-weight:650}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+.chip{padding:4px 10px;font-size:.88rem;border-radius:999px}
+.chip.on{background:var(--btn);color:var(--btnfg);border-color:var(--btn)}
+.tags{margin-top:6px}
+.sq img{width:94%;height:94%;cursor:grab;position:relative;z-index:1}
+.sq.last{background-image:linear-gradient(rgba(242,211,107,.55),rgba(242,211,107,.55))}
+.sq.tgt::after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(27,34,48,.35);z-index:2;pointer-events:none}
+.sq.tgt.cap::after{width:88%;height:88%;background:none;border:4px solid rgba(27,34,48,.35)}
+.coord{z-index:3}
+.bar{justify-content:flex-start}select{max-width:100%}
+.clock{font-weight:650;font-variant-numeric:tabular-nums}
+.srow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 0;font-size:.92rem}
+.meter{display:block;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--d)}
+.sv{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;font-size:.85rem}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{margin:0;text-align:center}.stat b{font-size:1.35rem;display:block}
+.hidden{display:none}
+.foot{margin-top:18px}
+.foot .row{margin-bottom:6px}
+</style></head><body><div class="wrap">
+<h1>My missed tactics</h1>
+<div class="row" style="margin-bottom:10px"><button id="tabT" class="main">Train</button><button id="tabS">Stats</button></div>
+<div id="train">
+<div class="bar">
+  <select id="mode" aria-label="Mode"><option value="due">Due today</option><option value="failed">Review: failed last time</option><option value="all">Everything</option></select>
+  <select id="timer" aria-label="Timed round"><option value="0">Untimed</option><option value="30">30 s each</option><option value="15">15 s each</option><option value="10">10 s each</option></select>
+  <span class="clock" id="clock"></span>
+  <label class="meta hidden" id="englab"><input type="checkbox" id="engtoggle"> Engine arrows</label>
+</div>
+<div class="bar">
+  <select id="filter" aria-label="Type"></select>
+  <select id="game" aria-label="Game"></select>
+  <select id="opp" aria-label="Opponent"></select>
+  <select id="color" aria-label="Colour"><option value="all">Both colours</option><option value="white">As White</option><option value="black">As Black</option></select>
+  <select id="theme" aria-label="Pattern"></select>
+  <select id="when" aria-label="Date"><option value="all">Any date</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+</div>
+<div class="meta" id="count" style="margin-bottom:8px"></div>
+<div id="board" aria-label="Chess board"></div>
+<div class="panel" id="status"></div>
+<div class="panel hidden" id="detail"></div>
+<div class="panel hidden" id="whypanel"><div id="why"></div></div>
+<div class="row" id="actions"></div>
+</div>
+<div id="stats" class="hidden"></div>
+<div class="panel foot">
+  <div class="row"><button id="exp">Export progress</button><button id="imp">Import progress</button></div>
+  <div class="meta">Progress, notes and attempt history are kept in this browser. Export saves them to a file you can keep; import loads it back.</div>
+  <div class="meta" id="logmeta"></div>
+  <div class="meta" id="msg"></div>
+  <div class="meta bad" id="note"></div>
+  <input type="file" id="file" accept=".json,application/json" class="hidden">
+</div>
+</div>
+<script>__CHESSJS__</script>
+<script>
+const PUZ=__DATA__;
+const PIECES=__PIECES__;
+const LABEL={missed_mate:"Missed mate",long_route:"Took the long route",missed_win:"Missed win",blunder:"Blunder",mistake:"Mistake",none:"Quiet position"};
+const TL={mate:"Mate",back_rank:"Back-rank mate",smothered:"Smothered mate",arabian:"Arabian mate",anastasia:"Anastasia\u2019s mate",double_bishop:"Double-bishop mate",fork:"Fork",pin:"Pin",skewer:"Skewer",discovered_attack:"Discovered attack",hanging_piece:"Hanging piece"};
+const TAGS=["Didn\u2019t look for checks","Went for the long route","Missed a loose piece","Missed their threat","Saw it but doubted it","Moved too fast","Other"];
+const GLYPH={k:"\u265A",q:"\u265B",r:"\u265C",b:"\u265D",n:"\u265E",p:"\u265F"};
+const FILES="abcdefgh";
+const DAYS=[0,1,3,7,21,60];
+const KEY="mtp1",LOGKEY="mtp1log";
+let store={},log=[],storageOk=true;
+try{store=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){storageOk=false;store={}}
+try{log=JSON.parse(localStorage.getItem(LOGKEY)||"[]");if(!Array.isArray(log))log=[]}catch(e){log=[]}
+let queue=[],cur=null,pos={},sel=null,hint=null,reveal=false,state="idle",tries=0,recorded=false,allMode=false;
+let t0=0,dms=null,detAns=null;
+let g=null,last=null,li=0,dragFrom=null,redo=[],tab="train",practice=false,arrows=[],engineOn=false;
+let timer=null,tleft=0,timedOut=false;
+
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function note(){$("note").textContent=storageOk?"":"This browser is not keeping progress here. Export before you close the page."}
+function msg(t){$("msg").textContent=t}
+function logMeta(){$("logmeta").textContent=log.length+" attempts logged."}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){storageOk=false;note()}}
+function saveLog(){try{localStorage.setItem(LOGKEY,JSON.stringify(log))}catch(e){storageOk=false;note()}}
+function parse(fen){const m={};fen.split(" ")[0].split("/").forEach((row,i)=>{let f=0;for(const ch of row){if(/\d/.test(ch))f+=+ch;else{m[FILES[f]+(8-i)]=ch;f++}}});return m}
+function isDue(p){const s=store[p.id];return !s||s.due<=Date.now()}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+/* ---- progress, attempt history and notes: export / import ---- */
+function exportProgress(){
+  const payload={app:"missed-tactics",version:2,exported:new Date().toISOString(),progress:store,log:log};
+  const blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="puzzle-progress-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  msg("Exported "+Object.keys(store).length+" puzzle records and "+log.length+" attempts.");
+}
+function mergeProgress(inc){
+  let n=0;
+  for(const [id,r] of Object.entries(inc||{})){
+    if(!r||typeof r.box!=="number"||typeof r.due!=="number")continue;
+    const c=store[id];
+    if(!c||(r.upd||0)>(c.upd||0)){
+      if(c&&!r.tags&&c.tags)r.tags=c.tags;
+      if(c&&!r.note&&c.note)r.note=c.note;
+      store[id]=r;n++;
+    }
+  }
+  return n;
+}
+function mergeLog(inc){
+  if(!Array.isArray(inc))return 0;
+  const seen=new Set(log.map(e=>e.t+"|"+e.id));
+  let n=0;
+  for(const e of inc){
+    if(!e||typeof e.t!=="number"||typeof e.id!=="string")continue;
+    const k=e.t+"|"+e.id;
+    if(seen.has(k))continue;
+    seen.add(k);
+    log.push({t:e.t,id:e.id,c:e.c,ok:e.ok?1:0,tr:e.tr||0,d:e.d||null,dms:e.dms==null?null:e.dms,ms:e.ms==null?null:e.ms,to:e.to?1:0});
+    n++;
+  }
+  log.sort((a,b)=>a.t-b.t);
+  return n;
+}
+function importProgress(file){
+  if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      const isV2=d&&typeof d==="object"&&d.progress;
+      const n=mergeProgress(isV2?d.progress:d);
+      const m=isV2?mergeLog(d.log):0;
+      save();saveLog();logMeta();
+      msg("Imported: "+n+" puzzle records updated, "+m+" attempts added.");
+      start();
+    }catch(e){msg("That file isn\u2019t a progress export.")}
+  };
+  rd.readAsText(file);
+}
+
+/* ---- trainer ---- */
+function opp(p){return p.turn==="white"?p.game.black:p.game.white}
+function gkey(p){return p.game.white+"|"+p.game.black+"|"+p.game.date}
+function inRange(p,dt){
+  if(dt==="all")return true;
+  const m=/^(\d{4})\.(\d{2})\.(\d{2})$/.exec(p.game.date||"");
+  if(!m)return false;
+  return Date.now()-new Date(+m[1],+m[2]-1,+m[3]).getTime()<=(+dt)*864e5;
+}
+function fill(id,first,items){
+  $(id).innerHTML=`<option value="all">${first}</option>`+items.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join("");
+}
+function buildFilter(){
+  fill("filter","All types",[...new Set(PUZ.map(p=>p.category))].map(c=>[c,LABEL[c]||c]));
+  const games=new Map();PUZ.forEach(p=>games.set(gkey(p),p.game));
+  fill("game","All games",[...games.entries()].sort((x,y)=>String(y[1].date).localeCompare(String(x[1].date))).map(([k,v])=>[k,v.white+" vs "+v.black+", "+v.date]));
+  fill("theme","All patterns",[...new Set(PUZ.flatMap(p=>p.themes||[]))].sort().map(x=>[x,TL[x]||x]));
+  fill("opp","All opponents",[...new Set(PUZ.map(opp))].sort().map(o=>[o,o]));
+  ["filter","game","opp","theme","color","when","mode","timer"].forEach(id=>{$(id).onchange=start});
+}
+function start(){
+  const lastOk={};log.forEach(e=>{lastOk[e.id]=e.ok});
+  const f=$("filter").value,gm=$("game").value,op=$("opp").value,dt=$("when").value,mode=$("mode").value,th=$("theme").value,col=$("color").value;
+  const pool=PUZ.filter(p=>(f==="all"||p.category===f)&&(gm==="all"||gkey(p)===gm)&&(op==="all"||opp(p)===op)&&inRange(p,dt)&&(th==="all"||(p.themes||[]).indexOf(th)>=0)&&(col==="all"||p.turn===col));
+  const list=mode==="due"?pool.filter(isDue):mode==="failed"?pool.filter(p=>lastOk[p.id]===0):pool;
+  queue=shuffle(list.slice());
+  $("count").textContent=mode==="due"?list.length+" due of "+pool.length:list.length+" puzzles in this set";
+  next();
+}
+function stopTimer(){clearInterval(timer);timer=null;$("clock").textContent=""}
+function startTimer(){
+  stopTimer();timedOut=false;
+  const lim=+$("timer").value;if(!lim)return;
+  tleft=lim;$("clock").textContent=tleft+"s";
+  timer=setInterval(()=>{
+    tleft-=1;
+    if(tleft>0){$("clock").textContent=tleft+"s";return}
+    stopTimer();
+    if(cur&&(state==="detect"||state==="solve")){timedOut=true;finish(false,"Time\u2019s up. Best was "+esc(cur.best_san)+".")}
+  },1000);
+}
+function next(){
+  cur=queue.shift();
+  $("whypanel").classList.add("hidden");
+  if(!cur){done();return}
+  g=new Chess(cur.fen);pos=parse(g.fen());last=null;li=0;arrows=[];practice=false;sel=null;hint=null;reveal=false;tries=0;recorded=false;state="detect";
+  t0=Date.now();dms=null;detAns=null;timedOut=false;startTimer();
+  $("detail").classList.add("hidden");
+  render();
+  const side=cur.turn==="white"?"White":"Black";
+  $("status").innerHTML=`<p class="q">${side} to move. Is there a tactic here?</p><div class="meta">Run your scan first: checks, captures, threats, loose pieces.</div>`;
+  $("actions").innerHTML=`<button class="main" id="yes">Yes, I see one</button><button id="no">No, it\u2019s quiet</button>`;
+  $("yes").onclick=()=>answer(true);$("no").onclick=()=>answer(false);
+}
+function done(){
+  state="idle";stopTimer();pos={};sel=null;hint=null;cur=null;render();
+  $("detail").classList.add("hidden");
+  $("status").innerHTML=PUZ.length?`<p class="q">${$("mode").value==="due"?"Nothing due right now.":"No puzzles match these settings."}</p><div class="meta">Change a filter, or practise everything again.</div>`:`<p class="q">No puzzles found.</p><div class="meta">Run the script on a PGN that contains some mistakes.</div>`;
+  $("actions").innerHTML=PUZ.length?`<button class="main" id="all">Practise all anyway</button>`:"";
+  if(PUZ.length)$("all").onclick=()=>{$("mode").value="all";start()};
+}
+function answer(yes){
+  dms=Date.now()-t0;detAns=yes?"y":"n";
+  const decoy=cur.category==="none";
+  if(decoy){
+    if(!yes){finish(true,"Right: nothing forced here. The engine\u2019s choice was "+esc(cur.best_san)+".")}
+    else{finish(false,"Nothing forced here. Seeing a tactic that isn\u2019t there is a trap too. Quiet move: "+esc(cur.best_san)+".")}
+    return;
+  }
+  if(!yes){finish(false,"There was something. Best was "+esc(cur.best_san)+".");return}
+  state="solve";
+  $("status").innerHTML=`<p class="q">Find the move.</p><div class="meta">Click the piece, then its destination.</div>`;
+  $("actions").innerHTML=`<button id="hint">Hint</button><button id="show">Show solution</button>`;
+  $("hint").onclick=hintStep;
+  $("show").onclick=()=>finish(false,"Best was "+esc(cur.best_san)+".");
+}
+function record(ok){
+  if(recorded)return;recorded=true;
+  const s=store[cur.id]||{box:0};
+  s.box=ok?Math.min(s.box+1,DAYS.length-1):0;
+  s.due=Date.now()+DAYS[s.box]*864e5;
+  s.upd=Date.now();
+  store[cur.id]=s;save();
+  if(!ok)queue.push(cur);
+}
+function logAttempt(ok){
+  log.push({t:Date.now(),id:cur.id,c:cur.category,ok:ok?1:0,tr:tries,d:detAns,dms:dms,ms:Date.now()-t0,to:timedOut?1:0});
+  saveLog();logMeta();
+}
+function finish(ok,m,cont){
+  if(state==="done"||state==="line")return;
+  stopTimer();if(!practice){logAttempt(ok);record(ok)}reveal=true;
+  if(cont){
+    state="line";
+    $("status").innerHTML=`<p class="ok">Correct.</p><div>${m}</div><div class="meta">Keep playing the line.</div>`;
+    $("actions").innerHTML=`<button id="hint">Hint</button><button id="skip">Skip the rest</button>`;
+    $("hint").onclick=hintStep;
+    $("skip").onclick=()=>endLine(true);
+    render();return;
+  }
+  showDetail(ok,m);
+}
+function showDetail(ok,m){
+  state="done";sel=null;redo=g.history().length?[]:cur.pv.slice().reverse();
+  const gm=cur.game;
+  $("status").innerHTML=`<p class="${ok?"ok":"bad"}">${ok?"Correct.":"Not this time."}</p><div>${m}</div><div class="meta">Arrow keys step through the moves. Enter goes to the next puzzle and R tries this one again (unscored). Moving pieces explores; Reset puts the position back.</div>`;
+  const loss=cur.category==="none"?"":` Cost in the game: about ${(cur.loss/100).toFixed(1)} pawns.`;
+  $("detail").classList.remove("hidden");
+  $("detail").innerHTML=`<span class="tag">${esc(LABEL[cur.category]||cur.category)}</span> ${(cur.themes||[]).map(x=>`<span class="tag">${esc(TL[x]||x)}</span>`).join(" ")}
+  <p style="margin:8px 0 4px">You played <b>${esc(cur.played_san)}</b> (move ${cur.move_no}).${loss}</p>
+  <p style="margin:4px 0">Engine line: ${cur.pv.map(esc).join(" ")} (eval ${esc(whiteEval(cur.best_eval,cur.turn))})</p>
+  <div class="meta">${esc(gm.white)} vs ${esc(gm.black)}, ${esc(gm.date)}</div>`;
+  buildWhy(ok);
+  $("whypanel").classList.remove("hidden");
+  $("actions").innerHTML=`<button class="main" id="nx">Next</button><button id="rty">Try again</button><button id="rst">Reset board</button>`;
+  $("nx").onclick=next;$("rty").onclick=retry;
+  $("rst").onclick=()=>{g=new Chess(cur.fen);redo=cur.pv.slice().reverse();refresh()};
+  render();eng();
+}
+function whiteEval(s,turn){
+  s=String(s);
+  if(turn==="white")return s;
+  if(s==="+0.0")return "0.0";
+  if(s[0]==="+")return "-"+s.slice(1);
+  if(s[0]==="-")return "+"+s.slice(1);
+  return "-"+s;
+}
+function endLine(skip){
+  state="line";
+  showDetail(true,skip?"Line skipped. The full line was "+cur.pv.map(esc).join(" ")+".":(g.isCheckmate()?"Checkmate. ":"Line complete. ")+"The full line was "+cur.pv.map(esc).join(" ")+".");
+}
+
+/* ---- "why did I miss it" tags and notes ---- */
+function touch(){
+  const s=store[cur.id]||(store[cur.id]={box:0,due:Date.now()});
+  s.upd=Date.now();return s;
+}
+function toggleTag(t){
+  const s=touch();const a=s.tags||[];const i=a.indexOf(t);
+  if(i>=0)a.splice(i,1);else a.push(t);
+  s.tags=a;save();
+}
+function setNote(v){const s=touch();s.note=String(v).trim().slice(0,140);save()}
+function buildWhy(ok){
+  const w=$("why");w.innerHTML="";
+  const rec=store[cur.id]||{};
+  const lab=document.createElement("div");lab.className="meta";
+  lab.textContent=ok?"Anything to remember? (optional)":"Why did I miss it? (optional)";
+  w.appendChild(lab);
+  const row=document.createElement("div");row.className="row tags";
+  TAGS.forEach(t=>{
+    const on=(rec.tags||[]).indexOf(t)>=0;
+    const b=document.createElement("button");
+    b.type="button";b.className="chip"+(on?" on":"");b.textContent=t;
+    b.setAttribute("aria-pressed",on?"true":"false");
+    b.onclick=()=>{toggleTag(t);buildWhy(ok)};
+    row.appendChild(b);
+  });
+  w.appendChild(row);
+  const inp=document.createElement("input");
+  inp.type="text";inp.maxLength=140;inp.placeholder="Short note";inp.value=rec.note||"";
+  inp.setAttribute("aria-label","Short note");
+  inp.oninput=()=>setNote(inp.value);
+  w.appendChild(inp);
+}
+
+/* ---- board ---- */
+function play(from,to,promo){
+  try{const mv=g.move({from:from,to:to,promotion:promo||"q"});pos=parse(g.fen());last=[mv.from,mv.to];return mv}catch(e){return null}
+}
+function canPick(sq){
+  if(["solve","line","done"].indexOf(state)<0)return false;
+  const p=pos[sq];if(!p)return false;
+  const turn=state==="done"?g.turn():cur.turn[0];
+  return (p===p.toUpperCase())===(turn==="w");
+}
+function click(sq){
+  if(["solve","line","done"].indexOf(state)<0)return;
+  if(sel){
+    if(sq===sel){sel=null;render();return}
+    if(canPick(sq)){sel=sq;render();return}
+    const f=sel;sel=null;attempt(f,sq);return;
+  }
+  if(canPick(sq)){sel=sq;render()}
+}
+function reply(){
+  if(g.isGameOver()||li>=cur.pv.length){endLine(false);return}
+  setTimeout(()=>{
+    if(state!=="line")return;
+    try{const mv=g.move(cur.pv[li]);pos=parse(g.fen());last=[mv.from,mv.to];li++}catch(e){endLine(false);return}
+    render();
+    if(g.isGameOver()||li>=cur.pv.length){endLine(false);return}
+    $("status").innerHTML=`<p class="q">Your move.</p><div class="meta">Keep playing the line.</div>`;
+  },450);
+}
+function attempt(from,to){
+  if(!g.moves({square:from,verbose:true}).some(m=>m.to===to)){render();return}
+  if(state==="done"){if(play(from,to))redo=[];render();eng();return}
+  if(state==="line"){
+    const mv=play(from,to);
+    if(!mv)return;
+    if(mv.san!==cur.pv[li]){
+      g.undo();pos=parse(g.fen());last=null;
+      $("status").innerHTML=`<p class="q bad">Not that one. Try again.</p><div class="meta">Stay on the engine line.</div>`;
+      render();return;
+    }
+    li++;render();
+    if(g.isGameOver()||li>=cur.pv.length){endLine(false);return}
+    reply();return;
+  }
+  const u=from+to,hit=cur.accept.find(a=>a.slice(0,4)===u);
+  if(hit){
+    const mv=play(from,to,hit[4]);
+    const cont=!!mv&&mv.san===cur.pv[0]&&cur.pv.length>2&&!g.isGameOver();
+    finish(true,"You found "+esc(cur.best_san)+(cur.accept.length>1?" (or an equally good alternative).":"."),cont);
+    if(cont){li=1;reply()}else if(state==="line"||state==="solve"){endLine(false)}
+    return;
+  }
+  tries++;
+  if(tries>=2){finish(false,"Best was "+esc(cur.best_san)+".");return}
+  $("status").innerHTML=`<p class="q bad">Not that one. Try again.</p><div class="meta">One more attempt before the answer is shown.</div>`;
+  render();
+}
+function render(){
+  const b=$("board");b.innerHTML="";
+  const flip=cur&&cur.turn==="black";
+  const tg=new Set();
+  if(sel&&g)g.moves({square:sel,verbose:true}).forEach(m=>tg.add(m.to));
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const file=flip?7-c:c,rank=flip?r:7-r,sq=FILES[file]+(rank+1);
+    const d=document.createElement("div");
+    d.className="sq "+((file+rank)%2?"l":"d");
+    if(sq===sel)d.className+=" sel";
+    if(last&&(sq===last[0]||sq===last[1]))d.className+=" last";
+    if((hint&&hint.indexOf(sq)>=0)||(reveal&&cur&&(sq===cur.best.slice(0,2)||sq===cur.best.slice(2,4))))d.className+=" hint";
+    if(tg.has(sq))d.className+=pos[sq]?" tgt cap":" tgt";
+    const p=pos[sq];
+    if(p){
+      const im=document.createElement("img");
+      im.src=PIECES[(p===p.toUpperCase()?"w":"b")+p.toUpperCase()];im.alt=p;im.draggable=true;
+      im.ondragstart=e=>{if(!canPick(sq)){e.preventDefault();return}dragFrom=sq;try{e.dataTransfer.setData("text","m")}catch(_){}};
+      d.appendChild(im);
+    }
+    if(c===0||r===7){const k=document.createElement("span");k.className="coord";k.textContent=(c===0?(rank+1):"")+(r===7?FILES[file]:"");d.appendChild(k)}
+    d.onclick=()=>click(sq);
+    d.ondragover=e=>e.preventDefault();
+    d.ondrop=e=>{e.preventDefault();const f=dragFrom;dragFrom=null;sel=null;if(f&&f!==sq)attempt(f,sq);else render()};
+    b.appendChild(d);
+  }
+  drawArrows(b,flip);
+}
+function refresh(){
+  pos=parse(g.fen());sel=null;
+  const h=g.history({verbose:true});
+  last=h.length?[h[h.length-1].from,h[h.length-1].to]:null;
+  render();eng();
+}
+function stepBack(){const mv=g.undo();if(mv){redo.push(mv.san);refresh()}}
+function stepFwd(){
+  if(!redo.length)return;
+  try{g.move(redo[redo.length-1]);redo.pop();refresh()}catch(e){redo=[]}
+}
+function hintStep(){
+  let f,t2;
+  if(state==="line"){const mv=g.moves({verbose:true}).find(m=>m.san===cur.pv[li]);if(!mv)return;f=mv.from;t2=mv.to}
+  else{f=cur.best.slice(0,2);t2=cur.best.slice(2,4)}
+  hint=(hint&&hint.length===1&&hint[0]===f)?[f,t2]:[f];render();
+}
+function retry(){
+  if(state!=="done"||!cur)return;
+  practice=true;stopTimer();
+  g=new Chess(cur.fen);pos=parse(g.fen());last=null;sel=null;hint=null;reveal=false;tries=0;li=0;redo=[];arrows=[];
+  state="solve";
+  $("status").innerHTML=`<p class="q">Practice: find the move.</p><div class="meta">This try isn\u2019t scored.</div>`;
+  $("actions").innerHTML=`<button id="hint">Hint</button><button id="show">Show solution</button>`;
+  $("hint").onclick=hintStep;
+  $("show").onclick=()=>finish(false,"Best was "+esc(cur.best_san)+".");
+  render();
+}
+function eng(){
+  arrows=[];
+  if(!engineOn||state!=="done"||!g)return;
+  const fen=g.fen();
+  fetch("/analyse?fen="+encodeURIComponent(fen)).then(r=>r.json()).then(d=>{
+    if(g&&g.fen()===fen&&state==="done"){arrows=d.lines||[];render()}
+  }).catch(()=>{});
+}
+function drawArrows(b,flip){
+  if(!arrows.length||!g)return;
+  const xy=sq=>{const f=FILES.indexOf(sq[0]),r=+sq[1]-1;return [(flip?7-f:f)+.5,(flip?r:7-r)+.5]};
+  let s='<svg viewBox="0 0 8 8" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5"><defs>'
+   +'<marker id="ah1" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 z" fill="#3b82c4"/></marker>'
+   +'<marker id="ah2" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 z" fill="#8a96ad"/></marker></defs>';
+  const ls=arrows.slice().reverse();
+  ls.forEach((a,i)=>{
+    const best=i===ls.length-1,p=xy(a.from),q=xy(a.to);
+    s+=`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${best?"#3b82c4":"#8a96ad"}" stroke-opacity="${best?.8:.6}" stroke-width="${best?.16:.11}" stroke-linecap="round" marker-end="url(#${best?"ah1":"ah2"})"/>`;
+    s+=`<rect x="${q[0]-.36}" y="${q[1]-.52}" width=".72" height=".3" rx=".07" fill="${best?"#1b2a4a":"#3a4256"}"/><text x="${q[0]}" y="${q[1]-.3}" font-size=".21" font-weight="700" fill="#fff" text-anchor="middle" font-family="system-ui,sans-serif">${esc(a.eval)}</text>`;
+  });
+  b.insertAdjacentHTML("beforeend",s+"</svg>");
+}
+document.addEventListener("keydown",e=>{
+  if(tab!=="train"||e.ctrlKey||e.metaKey||e.altKey)return;
+  const tg=(e.target&&e.target.tagName)||"",k=e.key;
+  if(tg==="INPUT"||tg==="SELECT"||tg==="TEXTAREA")return;
+  if(tg==="BUTTON"&&(k==="Enter"||k===" "))return;
+  if(state==="done"){
+    if(k==="ArrowLeft"){e.preventDefault();stepBack()}
+    else if(k==="ArrowRight"){e.preventDefault();stepFwd()}
+    else if(k==="Enter"||k==="n"){e.preventDefault();next()}
+    else if(k==="r"){retry()}
+  }else if(k==="h"&&(state==="solve"||state==="line")){hintStep()}
+});
+/* ---- stats ---- */
+function pct(a,b){return b?Math.round(100*a/b)+"%":"\u2013"}
+function dayKey(t){const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function dnum(k){const [y,m,d]=k.split("-").map(Number);return Math.round(Date.UTC(y,m-1,d)/864e5)}
+function group(fn){
+  const m={};
+  log.forEach(e=>{const ks=fn(e);if(ks==null)return;(Array.isArray(ks)?ks:[ks]).forEach(k=>{const o=m[k]||(m[k]={n:0,ok:0});o.n++;o.ok+=e.ok})});
+  return m;
+}
+function table(m,L){
+  const rows=Object.entries(m).map(([k,v])=>({k:k,n:v.n,ok:v.ok,a:v.ok/v.n})).sort((x,y)=>x.a-y.a||y.n-x.n);
+  const weak=rows.find(r=>r.n>=3&&r.a<1);
+  return rows.map(r=>`<div class="srow"><span class="sl">${esc(L[r.k]||r.k)}${r===weak?' <b class="bad">weakest</b>':""}</span><span class="meter"><i style="width:${Math.round(r.a*100)}%"></i></span><span class="sv">${Math.round(r.a*100)}% (${r.ok}/${r.n})</span></div>`).join("")||'<div class="meta">Nothing yet.</div>';
+}
+function renderStats(){
+  const el=$("stats");
+  if(!log.length){el.innerHTML='<div class="panel"><p class="q">No attempts yet.</p><div class="meta">Solve a few puzzles and your numbers will appear here.</div></div>';return}
+  const byId={};PUZ.forEach(p=>{byId[p.id]=p});
+  const days={};
+  log.forEach(e=>{const k=dayKey(e.t);const o=days[k]||(days[k]={n:0,ok:0});o.n++;o.ok+=e.ok});
+  let best=0,run=0,prev=null;
+  Object.keys(days).sort().forEach(k=>{const n=dnum(k);run=(prev!==null&&n===prev+1)?run+1:1;prev=n;if(run>best)best=run});
+  let streak=0;
+  for(let i=0;i<400;i++){if(days[dayKey(Date.now()-i*864e5)])streak++;else if(i>0)break}
+  const ok=log.filter(e=>e.ok).length;
+  const wk=log.filter(e=>e.t>Date.now()-7*864e5);
+  const td=days[dayKey(Date.now())]||{n:0,ok:0};
+  const tile=(v,l)=>`<div class="panel stat"><b>${v}</b><span class="meta">${l}</span></div>`;
+  const real=log.filter(e=>e.c!=="none"&&e.d),quiet=log.filter(e=>e.c==="none"&&e.d);
+  const spotted=real.filter(e=>e.d==="y").length,calm=quiet.filter(e=>e.d==="n").length;
+  const dm=log.map(e=>e.dms).filter(x=>x!=null).sort((a,b)=>a-b);
+  const med=dm.length?(dm[Math.floor(dm.length/2)]/1000).toFixed(1)+" s":"\u2013";
+  const timeouts=log.filter(e=>e.to).length;
+  let dmax=1;const drows=[];
+  for(let i=13;i>=0;i--){
+    const t=Date.now()-i*864e5,o=days[dayKey(t)]||{n:0,ok:0};
+    dmax=Math.max(dmax,o.n);
+    drows.push([new Date(t).toLocaleDateString(undefined,{month:"short",day:"numeric"}),o]);
+  }
+  const dhtml=drows.map(([l,o])=>`<div class="srow"><span class="sl">${esc(l)}</span><span class="meter"><i style="width:${Math.round(100*o.n/dmax)}%"></i></span><span class="sv">${o.n?o.n+" tried, "+pct(o.ok,o.n):"\u2013"}</span></div>`).join("");
+  const tc={};
+  Object.values(store).forEach(r=>(r.tags||[]).forEach(x=>{tc[x]=(tc[x]||0)+1}));
+  const thtml=Object.entries(tc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="srow"><span class="sl">${esc(k)}</span><span class="meter"><i style="width:${Math.round(100*v/Math.max(...Object.values(tc)))}%"></i></span><span class="sv">${v}</span></div>`).join("")||'<div class="meta">Tag your misses after a puzzle and they will be counted here.</div>';
+  el.innerHTML=`<div class="sum">${tile(log.length,"attempts")}${tile(pct(ok,log.length),"correct overall")}${tile(pct(wk.filter(e=>e.ok).length,wk.length),"correct, last 7 days")}${tile(td.n,"tried today")}${tile(streak+(streak===1?" day":" days"),"current streak")}${tile(best+(best===1?" day":" days"),"best streak")}</div>
+  <div class="panel"><p class="q">Where you miss most</p>${table(group(e=>e.c),LABEL)}<div class="meta">Lowest accuracy first. \u201cWeakest\u201d needs at least 3 attempts.</div></div>
+  <div class="panel"><p class="q">Patterns</p>${table(group(e=>{const p=byId[e.id];return p&&p.themes&&p.themes.length?p.themes:null}),TL)}</div>
+  <div class="panel"><p class="q">Spotting the tactic</p>
+    <div class="srow"><span class="sl">Saw it when it was there</span><span></span><span class="sv">${pct(spotted,real.length)} (${spotted}/${real.length})</span></div>
+    <div class="srow"><span class="sl">Called it quiet when it was</span><span></span><span class="sv">${pct(calm,quiet.length)} (${calm}/${quiet.length})</span></div>
+    <div class="srow"><span class="sl">Median time to decide</span><span></span><span class="sv">${med}</span></div>
+    <div class="srow"><span class="sl">Timed out</span><span></span><span class="sv">${timeouts}</span></div></div>
+  <div class="panel"><p class="q">Last 14 days</p>${dhtml}</div>
+  <div class="panel"><p class="q">Your reasons for missing</p>${thtml}</div>`;
+}
+function showTab(w){
+  tab=w;
+  $("train").classList.toggle("hidden",w!=="train");
+  $("stats").classList.toggle("hidden",w!=="stats");
+  $("tabT").className=w==="train"?"main":"";
+  $("tabS").className=w==="stats"?"main":"";
+  if(w==="stats"){stopTimer();renderStats()}
+  else if(state==="detect"||state==="solve")startTimer();
+}
+$("tabT").onclick=()=>showTab("train");
+$("tabS").onclick=()=>showTab("stats");
+$("exp").onclick=exportProgress;
+$("imp").onclick=()=>$("file").click();
+$("file").onchange=e=>{importProgress(e.target.files[0]);e.target.value=""};
+try{engineOn=localStorage.getItem("mtp1eng")!=="0"}catch(e){}
+if(location.protocol==="http:"){
+  fetch("/ping").then(r=>r.text()).then(x=>{
+    if(x==="ok"){$("englab").classList.remove("hidden");$("engtoggle").checked=engineOn}else engineOn=false;
+  }).catch(()=>{engineOn=false});
+}else engineOn=false;
+$("engtoggle").onchange=()=>{engineOn=$("engtoggle").checked;try{localStorage.setItem("mtp1eng",engineOn?"1":"0")}catch(e){}eng();render()};
+note();logMeta();buildFilter();render();start();
+</script></body></html>

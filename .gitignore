@@ -1,0 +1,21 @@
+# Your own data: never commit these
+puzzles.json
+puzzles.html
+puzzles.backup.json
+sync.json
+settings.json
+games/
+puzzle-progress-*.json
+
+# Engine downloads
+stockfish/
+
+# Your own PGN files (the example folder is kept)
+*.pgn
+!examples/*.pgn
+
+# Python and system files
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
